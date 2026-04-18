@@ -1,0 +1,79 @@
+//@version=6
+indicator("Volume Cluster - Last 2 Candles", overlay=true, max_boxes_count=500)
+
+// --- Настройки ---
+showLastNCandles = input.int(2, "Показывать кластер для последних свечей", minval=1, maxval=10)
+levelsCount = input.int(5, "Количество уровней объёма", minval=3, maxval=10)
+panelOffset = input.int(15, "Отступ панели (баров)", minval=5, maxval=50)
+panelColor = input.color(color.new(color.gray, 85), "Цвет фона")
+bullColor = input.color(color.new(color.green, 60), "Цвет бычьих уровней")
+bearColor = input.color(color.new(color.red, 60), "Цвет медвежьих уровней")
+
+// --- Логика ---
+currentVol = volume
+prevVol = volume[1]
+prevClose = close[1]
+prevOpen = open[1]
+
+isBull = close >= open
+isPrevBull = prevClose >= prevOpen
+
+// Функция для форматирования объема
+formatVolume(vol) =>
+    volText = ""
+    if vol >= 1000000
+        volText := str.tostring(vol / 1000000, "#.###M")
+    else if vol >= 1000
+        volText := str.tostring(vol / 1000, "#.###K")
+    else
+        volText := str.tostring(vol)
+    volText
+
+// --- Отрисовка ТОЛЬКО для последних N свечей ---
+for i = 0 to showLastNCandles - 1
+    if bar_index - i >= 0
+        // Определяем данные для свечи
+        idx = bar_index - i
+        vol = i == 0 ? currentVol : prevVol
+        bullish = i == 0 ? isBull : isPrevBull
+        
+        // Позиция панели справа от свечи
+        panelLeft = idx + panelOffset
+        panelRight = panelLeft + 8
+        
+        // Цена для позиционирования
+        priceHigh = i == 0 ? high : high[1]
+        priceLow = i == 0 ? low : low[1]
+        priceRange = priceHigh - priceLow
+        
+        // Рисуем уровни объёма (имитация кластера)
+        for level = 0 to levelsCount - 1
+            levelTop = priceHigh - (level * priceRange / levelsCount)
+            levelBottom = levelTop - (priceRange / levelsCount)
+            
+            // Имитация распределения объёма по уровням
+            levelVolPerc = 1.0 - (math.abs(level - levelsCount / 2) / levelsCount)
+            levelWidth = levelVolPerc * 6
+            
+            bgColor = bullish ? bullColor : bearColor
+            
+            box.new(
+                 left=int(panelLeft), 
+                 top=levelTop, 
+                 right=int(panelLeft + levelWidth), 
+                 bottom=levelBottom, 
+                 bgcolor=bgColor,
+                 border_color=na
+            )
+        
+        // Добавляем текст с общим объемом
+        volText = formatVolume(vol)
+        label.new(
+             x=int(panelLeft + 4), 
+             y=(priceHigh + priceLow) / 2, 
+             text=volText, 
+             style=label.style_label_center,
+             color=na, 
+             textcolor=color.white, 
+             size=size.small
+        )
